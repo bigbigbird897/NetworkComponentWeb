@@ -97,6 +97,21 @@ export const config = {
   save: (body) => request('POST', '/Config/Save', { body })
 }
 
+// ---- 记事本（固定目录 notes\）----
+export const notes = {
+  list: (q) => request('GET', '/Notes/GetList', { query: q }),
+  get: (q) => request('GET', '/Notes/Get', { query: q }),
+  save: (body) => request('POST', '/Notes/Save', { body }),
+  remove: (body) => request('POST', '/Notes/Delete', { body })
+}
+
+// ---- 日志查看（按天滚动）----
+export const logs = {
+  list: (q) => request('GET', '/Log/GetList', { query: q }),
+  content: (q) => request('GET', '/Log/Content', { query: q }),
+  remove: (body) => request('POST', '/Log/Delete', { body })
+}
+
 // ---- Socket 服务端 ----
 export const sockServer = {
   servers: () => request('GET', '/SocketServerOperation/GetAllServerCode'),

@@ -220,6 +220,79 @@
           </div>
         </section>
 
+        <!-- 记事本 -->
+        <section v-if="active === 'notes'" class="panel">
+          <h2 class="panel-title">记事本（文件保存在后端 notes 目录）</h2>
+          <div class="toolbar">
+            <input class="base-input" style="width:240px" v-model="notes.keyword" placeholder="按文件名搜索" @keyup.enter="loadNotes" />
+            <button class="btn ghost" @click="loadNotes">搜索</button>
+            <button class="btn" @click="newNote">新建</button>
+          </div>
+          <div class="grid two">
+            <div class="card">
+              <div class="card-h">文件列表（{{ noteList.length }}）</div>
+              <table class="tbl">
+                <thead><tr><th>文件名</th><th>修改时间</th><th>大小</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr v-for="n in noteList" :key="n.name" :class="{selrow: noteEdit.name===n.name}">
+                    <td>{{ n.name }}</td>
+                    <td>{{ n.modified }}</td>
+                    <td>{{ n.size }} B</td>
+                    <td>
+                      <button class="btn ghost sm" @click="editNote(n)">编辑</button>
+                      <button class="btn warn sm" @click="delNote(n)">删除</button>
+                    </td>
+                  </tr>
+                  <tr v-if="!noteList.length"><td colspan="4" class="empty">暂无文件</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card">
+              <div class="card-h">{{ noteEdit.name ? '编辑：' + noteEdit.name : '新建记事本' }}</div>
+              <div class="row"><label>文件名</label><input v-model="noteEdit.name" placeholder="例如 巡检记录.txt" :disabled="!!noteEdit.loaded" /></div>
+              <textarea v-model="noteEdit.content" class="editor-ta" spellcheck="false"></textarea>
+              <div class="btns">
+                <button class="btn" @click="saveNote">保存</button>
+                <button class="btn ghost" @click="noteEdit={name:'',content:'',loaded:false}">清空</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 日志查看 -->
+        <section v-if="active === 'logs'" class="panel">
+          <h2 class="panel-title">日志查看（logs 目录，按天滚动）</h2>
+          <div class="toolbar">
+            <label>日期</label>
+            <input type="date" v-model="logDate" class="sel" style="min-width:160px" />
+            <button class="btn ghost" @click="loadLogs">查询</button>
+            <button class="btn ghost" @click="logDate='';loadLogs">全部</button>
+            <button class="btn warn" @click="deleteSelectedLogs">删除选中</button>
+          </div>
+          <div class="grid two">
+            <div class="card">
+              <div class="card-h">日志文件（{{ logList.length }}）— 点行前勾选，双击或点查看读内容</div>
+              <table class="tbl">
+                <thead><tr><th><input type="checkbox" @change="toggleAllLogs($event)" /></th><th>文件名</th><th>大小</th><th>修改时间</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr v-for="l in logList" :key="l.name">
+                    <td><input type="checkbox" :value="l.name" v-model="logChecked" /></td>
+                    <td>{{ l.name }}</td>
+                    <td>{{ l.size }} B</td>
+                    <td>{{ l.modified }}</td>
+                    <td><button class="btn ghost sm" @click="viewLog(l)">查看</button></td>
+                  </tr>
+                  <tr v-if="!logList.length"><td colspan="5" class="empty">无日志文件</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card">
+              <div class="card-h">日志内容：{{ logView.name || '—' }}（返回 {{ logView.returnedLines }}/{{ logView.totalLines }} 行）</div>
+              <pre class="pre" style="max-height:480px">{{ logView.content }}</pre>
+            </div>
+          </div>
+        </section>
+
         <!-- 系统配置 -->
         <section v-if="active === 'config'" class="panel">
           <h2 class="panel-title">系统配置（appsettings.json）</h2>
@@ -291,6 +364,8 @@ export default {
         { key: 'opc', label: 'OPC UA', icon: '◉' },
         { key: 'sockc', label: 'Socket 客户端', icon: '⇦' },
         { key: 'socks', label: 'Socket 服务端', icon: '⇨' },
+        { key: 'notes', label: '记事本', icon: '✎' },
+        { key: 'logs', label: '日志查看', icon: '☰' },
         { key: 'config', label: '系统配置', icon: '⚙' }
       ],
       machineCode: '',
@@ -301,7 +376,14 @@ export default {
       opc: { device: '', devices: [], nodeId: '', nodesCsv: '', writeNode: '', writeValue: '' },
       sc: { device: '', devices: [], message: '', timeout: 1000, hex: '' },
       ss: { server: '', servers: [], clientId: '', message: '' },
-      cfg: { text: '', saving: false }
+      cfg: { text: '', saving: false },
+      notes: { keyword: '' },
+      noteList: [],
+      noteEdit: { name: '', content: '', loaded: false },
+      logDate: '',
+      logList: [],
+      logChecked: [],
+      logView: { name: '', content: '', totalLines: 0, returnedLines: 0 }
     }
   },
   async mounted() {
@@ -440,6 +522,46 @@ export default {
     async ssBroadcastString() { await this.run(() => api.sockServer.broadcastString({ serverCode: this.ss.server, message: this.ss.message }), '广播') },
 
     clearResult() { this.result = '' },
+
+    // ---- 记事本 ----
+    async loadNotes() {
+      const r = await this.run(() => api.notes.list({ keyword: this.notes.keyword }), '记事本列表')
+      if (r && r.code === 200) this.noteList = r.data || []
+    },
+    newNote() { this.noteEdit = { name: '', content: '', loaded: false } },
+    async editNote(n) {
+      const r = await this.run(() => api.notes.get({ name: n.name }), '读取记事本')
+      if (r && r.code === 200) this.noteEdit = { name: r.data.name, content: r.data.content || '', loaded: true }
+    },
+    async saveNote() {
+      if (!this.noteEdit.name) { this.out('✘ 请填写文件名'); return }
+      await this.run(() => api.notes.save({ name: this.noteEdit.name, content: this.noteEdit.content }), '保存记事本')
+      await this.loadNotes()
+    },
+    async delNote(n) {
+      if (!confirm('确认删除 ' + n.name + ' ？')) return
+      await this.run(() => api.notes.remove({ name: n.name }), '删除记事本')
+      await this.loadNotes()
+    },
+
+    // ---- 日志 ----
+    async loadLogs() {
+      const r = await this.run(() => api.logs.list({ date: this.logDate }), '日志列表')
+      if (r && r.code === 200) { this.logList = r.data || []; this.logChecked = [] }
+    },
+    async viewLog(l) {
+      const r = await this.run(() => api.logs.content({ name: l.name, maxLines: 1000 }), '读取日志')
+      if (r && r.code === 200) this.logView = r.data || { name: l.name, content: '', totalLines: 0, returnedLines: 0 }
+    },
+    toggleAllLogs(e) {
+      this.logChecked = e.target.checked ? this.logList.map(l => l.name) : []
+    },
+    async deleteSelectedLogs() {
+      if (!this.logChecked.length) { this.out('✘ 未选择日志'); return }
+      if (!confirm('确认删除选中的 ' + this.logChecked.length + ' 个日志？')) return
+      const r = await this.run(() => api.logs.remove({ names: this.logChecked.slice() }), '删除日志')
+      if (r && r.code === 200) await this.loadLogs()
+    },
 
     // 系统配置
     async loadConfig() {
@@ -608,4 +730,12 @@ export default {
   border: 1px solid transparent; outline: none; resize: vertical;
 }
 @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }
+/* 记事本 / 日志 列表与编辑器 */
+.tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; color: var(--text-2); }
+.tbl th { color: var(--text-3); font-weight: 600; }
+.tbl tr.selrow { background: var(--accent-soft); }
+.tbl .empty { text-align: center; color: var(--text-3); padding: 16px; }
+.btn.sm { padding: 3px 9px; font-size: 12px; margin-right: 4px; }
+.editor-ta { width: 100%; min-height: 260px; background: var(--input); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 8px; font-family: Consolas, monospace; font-size: 12.5px; resize: vertical; margin: 8px 0; }
 </style>
