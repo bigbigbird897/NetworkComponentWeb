@@ -263,10 +263,12 @@
         <section v-if="active === 'logs'" class="panel">
           <h2 class="panel-title">日志查看（logs 目录，按天滚动）</h2>
           <div class="toolbar">
-            <label>日期</label>
-            <input type="date" v-model="logDate" class="sel" style="min-width:160px" />
+            <label>开始日期</label>
+            <input type="date" v-model="logStart" class="sel" style="min-width:160px" />
+            <label>结束日期</label>
+            <input type="date" v-model="logEnd" class="sel" style="min-width:160px" />
             <button class="btn ghost" @click="loadLogs">查询</button>
-            <button class="btn ghost" @click="logDate='';loadLogs">全部</button>
+            <button class="btn ghost" @click="logStart='';logEnd='';loadLogs">全部</button>
             <button class="btn warn" @click="deleteSelectedLogs">删除选中</button>
           </div>
           <div class="grid two">
@@ -380,7 +382,8 @@ export default {
       notes: { keyword: '' },
       noteList: [],
       noteEdit: { name: '', content: '', loaded: false },
-      logDate: '',
+      logStart: '',
+      logEnd: '',
       logList: [],
       logChecked: [],
       logView: { name: '', content: '', totalLines: 0, returnedLines: 0 }
@@ -546,7 +549,7 @@ export default {
 
     // ---- 日志 ----
     async loadLogs() {
-      const r = await this.run(() => api.logs.list({ date: this.logDate }), '日志列表')
+      const r = await this.run(() => api.logs.list({ startDate: this.logStart, endDate: this.logEnd }), '日志列表')
       if (r && r.code === 200) { this.logList = r.data || []; this.logChecked = [] }
     },
     async viewLog(l) {
