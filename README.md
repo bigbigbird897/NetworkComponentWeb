@@ -1,4 +1,4 @@
-# 通枢工业通信中台 · 控制台
+# 工业通信中台 · 控制台
 
 基于 **Vue 2.7 + Element UI** 的后端接口调试控制台，启动后直接调用 .NET 中间件（NetworkComponent）的全部 HTTP 接口。
 
@@ -65,3 +65,4 @@ NetworkComponentWeb/
 | 2026-09-20 | 引入 highlight.js（`highlight.js@11`，仅注册 json 语言 + github 主题）：授权状态与调用结果中的 JSON 文本按语法高亮（键/字符串/数字/标点分色），非 JSON 纯文本自动降级为转义显示。 |
 | 2026-09-20 | 系统配置编辑器也加上语法高亮：采用「高亮层垫底 + 透明 textarea 覆盖」方案（无需引入 CodeMirror），打字/滚动时高亮随内容实时更新，光标正常显示；配置含 `//` 注释时由 hljs 容错，失败则降级为转义纯文本。 |
 | 2026-09-20 | 撤回全部 highlight.js 改动（编辑器高亮覆盖层 + 结果/授权框高亮），Console.vue 恢复为普通 textarea 与纯文本 `<pre>`；package.json 仍保留 highlight.js 依赖但不再引用。 |
+| 2026-09-23 | Socket 客户端页升级：① 新增「仅发送字符串(不等待)」与「仅发送HEX(不等待)」按钮（对应后端 `SendOnlyString` / `SendOnly`）；② 新增长连接管理卡片（打开/关闭/刷新状态，对应后端 `OpenLongConnection / CloseLongConnection / GetLongConnectionStatus`）；③ HEX 输入说明改为“Data 支持数组或 HEX 字符串”。`api/console.js` 同步新增 `sendOnlyString / openLong / closeLong / longStatus`。 |

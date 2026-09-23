@@ -1,4 +1,4 @@
-// ============ 通枢工业通信中台 · 控制台 API 封装 ============
+// ============ 工业通信中台 · 控制台 API 封装 ============
 // 后端基址：留空 = 同源（开发期由 vue.config.js 代理到 http://localhost:5000）。
 // 顶部“服务地址”可改成 http://192.168.x.x:5000 并持久化到 localStorage。
 
@@ -88,6 +88,10 @@ export const sockClient = {
   sendBytes: (b) => request('POST', '/SocketClientOperation/SendAndReceiveBytes', { body: b }),
   sendString: (b) => request('POST', '/SocketClientOperation/SendAndReceiveString', { body: b }),
   sendOnly: (b) => request('POST', '/SocketClientOperation/SendOnly', { body: b }),
+  sendOnlyString: (b) => request('POST', '/SocketClientOperation/SendOnlyString', { body: b }),
+  openLong: (b) => request('POST', '/SocketClientOperation/OpenLongConnection', { body: b }),
+  closeLong: (b) => request('POST', '/SocketClientOperation/CloseLongConnection', { body: b }),
+  longStatus: (q) => request('GET', '/SocketClientOperation/GetLongConnectionStatus', { query: q }),
   test: (q) => request('GET', '/SocketClientOperation/TestConnection', { query: q })
 }
 

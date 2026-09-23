@@ -161,7 +161,7 @@
 
         <!-- Socket 客户端 -->
         <section v-if="active === 'sockc'" class="panel">
-          <h2 class="panel-title">Socket 客户端（短连接）</h2>
+          <h2 class="panel-title">Socket 客户端（短连接 / 长连接）</h2>
           <div class="toolbar">
             <label>设备</label>
             <select v-model="sc.device" class="sel">
@@ -177,13 +177,25 @@
               <div class="row"><label>超时 ms</label><input type="number" v-model.number="sc.timeout" /></div>
               <div class="btns">
                 <button class="btn" @click="scSendString">发送并等待应答</button>
-                <button class="btn ghost" @click="scSendOnly">仅发送(不等待)</button>
+                <button class="btn ghost" @click="scSendOnlyString">仅发送字符串(不等待)</button>
               </div>
             </div>
             <div class="card">
-              <div class="card-h">十六进制字节收发</div>
+              <div class="card-h">十六进制字节收发（Data 支持数组或 HEX 字符串）</div>
               <div class="row"><label>HEX(空格分隔)</label><input v-model="sc.hex" placeholder="01 03 00 00 00 02" /></div>
-              <div class="btns"><button class="btn" @click="scSendBytes">发送字节并等待</button></div>
+              <div class="btns">
+                <button class="btn" @click="scSendBytes">发送字节并等待</button>
+                <button class="btn ghost" @click="scSendOnlyBytes">仅发送HEX(不等待)</button>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-h">长连接管理（配置 UseLongConnection=true 自动生效；也可手动开关）</div>
+              <div class="row"><label>状态</label><span class="conn-text">{{ sc.longInfo }}</span></div>
+              <div class="btns">
+                <button class="btn" @click="scOpenLong">打开长连接</button>
+                <button class="btn warn" @click="scCloseLong">关闭长连接</button>
+                <button class="btn ghost" @click="scLongStatus">刷新状态</button>
+              </div>
             </div>
           </div>
         </section>
@@ -299,7 +311,7 @@
         <section v-if="active === 'about'" class="panel">
           <h2 class="panel-title">关于本产品</h2>
           <div class="card about-card">
-            <h3 class="about-h3">通枢工业通信中台</h3>
+            <h3 class="about-h3">工业通信中台</h3>
             <p class="about-p">一套整合常用工业通信协议、开箱即用的后端服务 + Web 控制台 + Windows 桌面壳。
               开发者只需调用统一的 HTTP 接口，即可完成设备读写，无需自己对接各协议栈。</p>
 
@@ -407,7 +419,7 @@ export default {
       mb: { device: '', devices: [], start: 0, count: 6, addr: 0, value: '', regsCsv: '', boolsCsv: '', hex: '' },
       mq: { clientId: '', devices: [], topic: '', msg: '', topicSend: '', topicReply: '', sendPayload: '', timeout: 3000 },
       opc: { device: '', devices: [], nodeId: '', nodesCsv: '', writeNode: '', writeValue: '' },
-      sc: { device: '', devices: [], message: '', timeout: 1000, hex: '' },
+      sc: { device: '', devices: [], message: '', timeout: 1000, hex: '', longInfo: '未查询' },
       ss: { server: '', servers: [], clientId: '', message: '' },
       cfg: { text: '', saving: false },
       notes: { keyword: '' },
@@ -537,10 +549,21 @@ export default {
     },
     async scTest() { await this.run(() => api.sockClient.test({ deviceCode: this.sc.device }), '连通测试') },
     async scSendString() { await this.run(() => api.sockClient.sendString({ deviceCode: this.sc.device, message: this.sc.message, timeoutMs: this.sc.timeout }), '字符串收发') },
-    async scSendOnly() { await this.run(() => api.sockClient.sendOnly({ deviceCode: this.sc.device, message: this.sc.message, timeoutMs: this.sc.timeout }), '仅发送') },
+    async scSendOnlyString() { await this.run(() => api.sockClient.sendOnlyString({ deviceCode: this.sc.device, message: this.sc.message, timeoutMs: this.sc.timeout }), '仅发送字符串') },
+    async scSendOnlyBytes() { await this.run(() => api.sockClient.sendOnly({ deviceCode: this.sc.device, data: this.sc.hex, timeoutMs: this.sc.timeout }), '仅发送HEX') },
     async scSendBytes() {
       const data = hexToBytes(this.sc.hex)
       await this.run(() => api.sockClient.sendBytes({ deviceCode: this.sc.device, data, timeoutMs: this.sc.timeout }), '字节收发')
+    },
+    // 长连接管理
+    async scOpenLong() { await this.run(() => api.sockClient.openLong({ deviceCode: this.sc.device }), '打开长连接') },
+    async scCloseLong() { await this.run(() => api.sockClient.closeLong({ deviceCode: this.sc.device }), '关闭长连接') },
+    async scLongStatus() {
+      const r = await this.run(() => api.sockClient.longStatus({ deviceCode: this.sc.device }), '长连接状态')
+      if (r && r.code === 200) {
+        const s = r.data || {}
+        this.sc.longInfo = s.isOpen ? ('已连接 ' + (s.connectedSince || '') + ' 收发 ' + (s.bytesSent||0) + '/' + (s.bytesReceived||0) + 'B') : '未连接'
+      }
     },
 
     // Socket 服务端
