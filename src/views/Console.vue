@@ -626,9 +626,9 @@ export default {
       if (this.mq.pollSubTimer) { clearInterval(this.mq.pollSubTimer); this.mq.pollSubTimer = null }
     },
     async mqRefreshSub() {
-      if (!this.mq.topic) return
+      if (!this.mq.subTopic) return
       try {
-        const r = await api.mqtt.received({ clientId: this.mq.clientId, topic: this.mq.topic })
+        const r = await api.mqtt.received({ clientId: this.mq.clientId, topic: this.mq.subTopic })
         if (r && r.code === 200) this.mq.subMessages = r.data || []
       } catch (e) { /* 后端未就绪时忽略 */ }
     },
