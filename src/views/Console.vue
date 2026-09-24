@@ -111,27 +111,43 @@
           </div>
           <div class="grid two">
             <div class="card">
-              <div class="card-h">发布 / 订阅</div>
-              <div class="row"><label>主题</label><input v-model="mq.topic" placeholder="factory/zone/z" /></div>
-              <div class="row"><label>消息</label><input v-model="mq.msg" /></div>
+              <div class="card-h">发布消息（向指定主题推送）</div>
+              <div class="row"><label>发布主题</label><input v-model="mq.topic" placeholder="factory/zone/z" /></div>
+              <div class="row"><label>消息内容</label><input v-model="mq.msg" /></div>
+              <div class="btns"><button class="btn" @click="mqAction('publish')">发布消息</button></div>
+            </div>
+            <div class="card">
+              <div class="card-h">托管订阅（订阅主题后，该主题消息进入下方「订阅主题消息」列表）</div>
+              <div class="row"><label>订阅主题</label><input v-model="mq.subTopic" placeholder="factory/zone/z" /></div>
               <div class="btns">
-                <button class="btn" @click="mqAction('publish')">发布</button>
-                <button class="btn" @click="mqAction('sub')">订阅</button>
+                <button class="btn" @click="mqAction('sub')">订阅主题</button>
                 <button class="btn ghost" @click="mqAction('unsub')">取消订阅</button>
               </div>
             </div>
-            <div class="card">
-              <div class="card-h">发送并等待应答</div>
-              <div class="row"><label>发送主题</label><input v-model="mq.topicSend" /></div>
-              <div class="row"><label>应答主题</label><input v-model="mq.topicReply" /></div>
-              <div class="row"><label>Payload</label><input v-model="mq.sendPayload" /></div>
-              <div class="row"><label>超时 ms</label><input type="number" v-model.number="mq.timeout" /></div>
-              <div class="btns"><button class="btn" @click="mqWait">发送并等待</button></div>
+          </div>
+          <div class="card" style="margin-top:12px">
+            <div class="card-h">发送并等待应答</div>
+            <div class="grid two">
+              <div>
+                <div class="row"><label>发送主题</label><input v-model="mq.topicSend" /></div>
+                <div class="row"><label>Payload</label><input v-model="mq.sendPayload" /></div>
+              </div>
+              <div>
+                <div class="row"><label>应答主题</label><input v-model="mq.topicReply" /></div>
+                <div class="row"><label>超时 ms</label><input type="number" v-model.number="mq.timeout" /></div>
+              </div>
             </div>
+            <div class="btns">
+              <button class="btn" @click="mqWait">发送并等待</button>
+              <span v-if="mq.lastWait" class="conn-text" :style="{marginLeft:'10px', color: mq.lastWait.isSuccess ? '#2e7d32' : '#c62828'}">
+                最近结果：{{ mq.lastWait.isSuccess ? '✔ 已收到应答' : (mq.lastWait.isTimeout ? '✘ 等待超时' : '✘ 失败') }}
+              </span>
+            </div>
+            <pre v-if="mq.lastWait" class="pre" style="max-height:140px;margin-top:8px">应答内容：{{ typeof mq.lastWait.responsePayload === 'string' ? mq.lastWait.responsePayload : JSON.stringify(mq.lastWait.responsePayload) }}</pre>
           </div>
           <div class="grid two" style="margin-top:12px">
             <div class="card">
-              <div class="card-h">订阅主题消息（{{ mq.topic || '未设置主题' }}）— 订阅后轮询显示，收到即追加</div>
+              <div class="card-h">订阅主题消息（{{ mq.subTopic || '未设置主题' }}）— 订阅后轮询显示，收到即追加</div>
               <div class="btns" style="margin-bottom:8px">
                 <button class="btn ghost sm" @click="mqStartPollSub">开始轮询</button>
                 <button class="btn ghost sm" @click="mqStopPollSub">停止轮询</button>
@@ -441,7 +457,7 @@ export default {
       statusText: '',
       result: '',
       mb: { device: '', devices: [], start: 0, count: 6, addr: 0, value: '', regsCsv: '', boolsCsv: '', hex: '' },
-      mq: { clientId: '', devices: [], topic: '', msg: '', topicSend: '', topicReply: '', sendPayload: '', timeout: 3000, subMessages: [], replyMessages: [], pollSub: false, pollReply: false, pollSubTimer: null, pollReplyTimer: null },
+      mq: { clientId: '', devices: [], topic: '', msg: '', subTopic: 'factory/zone/z', topicSend: '', topicReply: '', sendPayload: '', timeout: 3000, subMessages: [], replyMessages: [], pollSub: false, pollReply: false, pollSubTimer: null, pollReplyTimer: null, lastWait: null },
       opc: { device: '', devices: [], nodeId: '', nodesCsv: '', writeNode: '', writeValue: '' },
       sc: { device: '', devices: [], message: '', timeout: 1000, hex: '', longInfo: '未查询' },
       ss: { server: '', servers: [], clientId: '', message: '' },
@@ -460,6 +476,11 @@ export default {
     this.applyBase()
     await this.loadMachineCode()
     await this.loadLicense()
+  },
+  // 组件销毁前停止 MQTT 轮询定时器，避免页面关闭后仍在请求后端
+  beforeDestroy() {
+    this.mqStopPollSub && this.mqStopPollSub()
+    this.mqStopPollReply && this.mqStopPollReply()
   },
   computed: {
     resultHtml() { return highlightJson(this.result) },
@@ -563,7 +584,6 @@ export default {
       this.mq.pollSub = true
       this.mqRefreshSub()
       this.mq.pollSubTimer = setInterval(() => this.mqRefreshSub(), 2000)
-      this.out('✔ 已开始轮询订阅主题消息')
     },
     mqStopPollSub() {
       this.mq.pollSub = false
@@ -582,7 +602,6 @@ export default {
       this.mq.pollReply = true
       this.mqRefreshReply()
       this.mq.pollReplyTimer = setInterval(() => this.mqRefreshReply(), 2000)
-      this.out('✔ 已开始轮询应答主题消息')
     },
     mqStopPollReply() {
       this.mq.pollReply = false
