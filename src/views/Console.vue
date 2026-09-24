@@ -112,13 +112,13 @@
           <div class="grid two">
             <div class="card">
               <div class="card-h">发布消息（向指定主题推送）</div>
-              <div class="row"><label>发布主题</label><input v-model="mq.topic" placeholder="factory/zone/z" /></div>
+              <div class="row"><label>发布主题</label><input v-model="mq.topic" list="pubTopicList" placeholder="factory/zone/z" /></div>
               <div class="row"><label>消息内容</label><input v-model="mq.msg" /></div>
               <div class="btns"><button class="btn" @click="mqAction('publish')">发布消息</button></div>
             </div>
             <div class="card">
               <div class="card-h">托管订阅（订阅主题后，该主题消息进入下方「订阅主题消息」列表）</div>
-              <div class="row"><label>订阅主题</label><input v-model="mq.subTopic" placeholder="factory/zone/z" /></div>
+              <div class="row"><label>订阅主题</label><input v-model="mq.subTopic" list="subTopicList" placeholder="factory/zone/z" /></div>
               <div class="btns">
                 <button class="btn" @click="mqAction('sub')">订阅主题</button>
                 <button class="btn ghost" @click="mqAction('unsub')">取消订阅</button>
@@ -129,11 +129,11 @@
             <div class="card-h">发送并等待应答</div>
             <div class="grid two">
               <div>
-                <div class="row"><label>发送主题</label><input v-model="mq.topicSend" /></div>
+                <div class="row"><label>发送主题</label><input v-model="mq.topicSend" list="sendTopicList" placeholder="发送主题" /></div>
                 <div class="row"><label>Payload</label><input v-model="mq.sendPayload" /></div>
               </div>
               <div>
-                <div class="row"><label>应答主题</label><input v-model="mq.topicReply" /></div>
+                <div class="row"><label>应答主题</label><input v-model="mq.topicReply" list="replyTopicList" placeholder="应答主题" /></div>
                 <div class="row"><label>超时 ms</label><input type="number" v-model.number="mq.timeout" /></div>
               </div>
             </div>
