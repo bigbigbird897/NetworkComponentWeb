@@ -129,6 +129,30 @@
               <div class="btns"><button class="btn" @click="mqWait">发送并等待</button></div>
             </div>
           </div>
+          <div class="grid two" style="margin-top:12px">
+            <div class="card">
+              <div class="card-h">订阅主题消息（{{ mq.topic || '未设置主题' }}）— 订阅后轮询显示，收到即追加</div>
+              <div class="btns" style="margin-bottom:8px">
+                <button class="btn ghost sm" @click="mqStartPollSub">开始轮询</button>
+                <button class="btn ghost sm" @click="mqStopPollSub">停止轮询</button>
+                <button class="btn ghost sm" @click="mqRefreshSub">刷新</button>
+                <button class="btn warn sm" @click="mq.subMessages = []">清空</button>
+                <span class="conn-text" :style="{'margin-left':'6px'}">{{ mq.pollSub ? '● 轮询中' : '○ 已停止' }}</span>
+              </div>
+              <pre class="pre mq-msg" style="max-height:280px">{{ mqMsgText(mq.subMessages) }}</pre>
+            </div>
+            <div class="card">
+              <div class="card-h">应答主题消息（{{ mq.topicReply || '未设置应答主题' }}）— 其他客户端发来的应答</div>
+              <div class="btns" style="margin-bottom:8px">
+                <button class="btn ghost sm" @click="mqStartPollReply">开始轮询</button>
+                <button class="btn ghost sm" @click="mqStopPollReply">停止轮询</button>
+                <button class="btn ghost sm" @click="mqRefreshReply">刷新</button>
+                <button class="btn warn sm" @click="mq.replyMessages = []">清空</button>
+                <span class="conn-text" :style="{'margin-left':'6px'}">{{ mq.pollReply ? '● 轮询中' : '○ 已停止' }}</span>
+              </div>
+              <pre class="pre mq-msg" style="max-height:280px">{{ mqMsgText(mq.replyMessages) }}</pre>
+            </div>
+          </div>
         </section>
 
         <!-- OPC UA -->
@@ -417,7 +441,7 @@ export default {
       statusText: '',
       result: '',
       mb: { device: '', devices: [], start: 0, count: 6, addr: 0, value: '', regsCsv: '', boolsCsv: '', hex: '' },
-      mq: { clientId: '', devices: [], topic: '', msg: '', topicSend: '', topicReply: '', sendPayload: '', timeout: 3000 },
+      mq: { clientId: '', devices: [], topic: '', msg: '', topicSend: '', topicReply: '', sendPayload: '', timeout: 3000, subMessages: [], replyMessages: [], pollSub: false, pollReply: false, pollSubTimer: null, pollReplyTimer: null },
       opc: { device: '', devices: [], nodeId: '', nodesCsv: '', writeNode: '', writeValue: '' },
       sc: { device: '', devices: [], message: '', timeout: 1000, hex: '', longInfo: '未查询' },
       ss: { server: '', servers: [], clientId: '', message: '' },
@@ -523,10 +547,59 @@ export default {
     },
     async mqAction(kind) {
       const q = { clientId: this.mq.clientId, topic: this.mq.topic, msg: this.mq.msg }
-      await this.run(() => api.mqtt[kind](q), kind)
+      const r = await this.run(() => api.mqtt[kind](q), kind)
+      // 订阅成功后自动开始轮询订阅主题消息；取消订阅后停止轮询并清空列表
+      if (kind === 'sub' && r && r.code === 200) { await this.mqStartPollSub() }
+      if (kind === 'unsub' && r && r.code === 200) { this.mqStopPollSub(); this.mq.subMessages = [] }
     },
     async mqWait() {
-      await this.run(() => api.mqtt.publishWait({ clientId: this.mq.clientId, topicSend: this.mq.topicSend, sendPayload: this.mq.sendPayload, topicReply: this.mq.topicReply, timeoutMs: this.mq.timeout }), '发送并等待')
+      const r = await this.run(() => api.mqtt.publishWait({ clientId: this.mq.clientId, topicSend: this.mq.topicSend, sendPayload: this.mq.sendPayload, topicReply: this.mq.topicReply, timeoutMs: this.mq.timeout }), '发送并等待')
+      // 后端已自动订阅答复主题，调用后开始轮询展示应答主题收到的消息
+      if (r && r.code === 200 && this.mq.topicReply) { await this.mqStartPollReply() }
+    },
+    // 订阅主题消息：轮询
+    mqStartPollSub() {
+      this.mqStopPollSub()
+      this.mq.pollSub = true
+      this.mqRefreshSub()
+      this.mq.pollSubTimer = setInterval(() => this.mqRefreshSub(), 2000)
+      this.out('✔ 已开始轮询订阅主题消息')
+    },
+    mqStopPollSub() {
+      this.mq.pollSub = false
+      if (this.mq.pollSubTimer) { clearInterval(this.mq.pollSubTimer); this.mq.pollSubTimer = null }
+    },
+    async mqRefreshSub() {
+      if (!this.mq.topic) return
+      try {
+        const r = await api.mqtt.received({ clientId: this.mq.clientId, topic: this.mq.topic })
+        if (r && r.code === 200) this.mq.subMessages = r.data || []
+      } catch (e) { /* 后端未就绪时忽略 */ }
+    },
+    // 应答主题消息：轮询
+    mqStartPollReply() {
+      this.mqStopPollReply()
+      this.mq.pollReply = true
+      this.mqRefreshReply()
+      this.mq.pollReplyTimer = setInterval(() => this.mqRefreshReply(), 2000)
+      this.out('✔ 已开始轮询应答主题消息')
+    },
+    mqStopPollReply() {
+      this.mq.pollReply = false
+      if (this.mq.pollReplyTimer) { clearInterval(this.mq.pollReplyTimer); this.mq.pollReplyTimer = null }
+    },
+    async mqRefreshReply() {
+      if (!this.mq.topicReply) return
+      try {
+        const r = await api.mqtt.received({ clientId: this.mq.clientId, topic: this.mq.topicReply })
+        if (r && r.code === 200) this.mq.replyMessages = r.data || []
+      } catch (e) { /* 后端未就绪时忽略 */ }
+    },
+    // 把消息列表渲染成纯文本（时间 + payload）
+    mqMsgText(list) {
+      const arr = list || []
+      if (!arr.length) return '（暂无消息，确认已订阅且其他客户端向该主题发布）'
+      return arr.map(m => `[${m.receiveTime}] ${m.payload}`).join('\n')
     },
 
     // OPC UA

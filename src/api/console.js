@@ -70,7 +70,8 @@ export const mqtt = {
   publish: (q) => request('POST', '/MqttOperation/PublishMsg', { query: q }),
   sub: (q) => request('POST', '/MqttOperation/SubTopic', { query: q }),
   unsub: (q) => request('POST', '/MqttOperation/UnSubTopic', { query: q }),
-  publishWait: (b) => request('POST', '/MqttOperation/PublishAndWaitReply', { body: b })
+  publishWait: (b) => request('POST', '/MqttOperation/PublishAndWaitReply', { body: b }),
+  received: (q) => request('GET', '/MqttOperation/GetReceivedMessages', { query: q })
 }
 
 // ---- OPC UA ----
