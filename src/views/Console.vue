@@ -169,6 +169,11 @@
               <pre class="pre mq-msg" style="max-height:280px">{{ mqMsgText(mq.replyMessages) }}</pre>
             </div>
           </div>
+          <!-- MQTT 主题历史下拉（localStorage 持久化，点输入框即可选择历史主题） -->
+          <datalist id="pubTopicList"><option v-for="t in mq.pubHist" :key="t" :value="t"></option></datalist>
+          <datalist id="subTopicList"><option v-for="t in mq.subHist" :key="t" :value="t"></option></datalist>
+          <datalist id="sendTopicList"><option v-for="t in mq.sendHist" :key="t" :value="t"></option></datalist>
+          <datalist id="replyTopicList"><option v-for="t in mq.replyHist" :key="t" :value="t"></option></datalist>
         </section>
 
         <!-- OPC UA -->
@@ -457,7 +462,7 @@ export default {
       statusText: '',
       result: '',
       mb: { device: '', devices: [], start: 0, count: 6, addr: 0, value: '', regsCsv: '', boolsCsv: '', hex: '' },
-      mq: { clientId: '', devices: [], topic: '', msg: '', subTopic: 'factory/zone/z', topicSend: '', topicReply: '', sendPayload: '', timeout: 3000, subMessages: [], replyMessages: [], pollSub: false, pollReply: false, pollSubTimer: null, pollReplyTimer: null, lastWait: null },
+      mq: { clientId: '', devices: [], topic: '', msg: '', subTopic: 'factory/zone/z', topicSend: '', topicReply: '', sendPayload: '', timeout: 3000, subMessages: [], replyMessages: [], pollSub: false, pollReply: false, pollSubTimer: null, pollReplyTimer: null, lastWait: null, pubHist: [], subHist: [], sendHist: [], replyHist: [] },
       opc: { device: '', devices: [], nodeId: '', nodesCsv: '', writeNode: '', writeValue: '' },
       sc: { device: '', devices: [], message: '', timeout: 1000, hex: '', longInfo: '未查询' },
       ss: { server: '', servers: [], clientId: '', message: '' },
@@ -474,6 +479,7 @@ export default {
   },
   async mounted() {
     this.applyBase()
+    this.mqLoadHist()
     await this.loadMachineCode()
     await this.loadLicense()
   },
@@ -561,22 +567,52 @@ export default {
       await this.run(() => api.modbusTcp.sendRaw({ deviceCode: this.mb.device, tcpPacketBytes: bytes }), '原始报文')
     },
 
+    // MQTT 主题历史：从 localStorage 读取 / 写入（最多 20 条，去重，最新在前）
+    mqLoadHist() {
+      try {
+        this.mq.pubHist = JSON.parse(localStorage.getItem('nc_mqtt_pub') || '[]')
+        this.mq.subHist = JSON.parse(localStorage.getItem('nc_mqtt_sub') || '[]')
+        this.mq.sendHist = JSON.parse(localStorage.getItem('nc_mqtt_send') || '[]')
+        this.mq.replyHist = JSON.parse(localStorage.getItem('nc_mqtt_reply') || '[]')
+      } catch (e) { /* 历史损坏则忽略 */ }
+    },
+    mqPushHist(kind, topic) {
+      if (!topic) return
+      const arr = this.mq[kind].filter(t => t !== topic)
+      arr.unshift(topic)
+      this.mq[kind] = arr.slice(0, 20)
+      const keys = { pubHist: 'nc_mqtt_pub', subHist: 'nc_mqtt_sub', sendHist: 'nc_mqtt_send', replyHist: 'nc_mqtt_reply' }
+      localStorage.setItem(keys[kind], JSON.stringify(this.mq[kind]))
+    },
     // MQTT
     async loadMqttDevices() {
       const r = await this.run(api.mqtt.devices)
       if (r && r.code === 200) { this.mq.devices = r.data || []; if (!this.mq.clientId && this.mq.devices[0]) this.mq.clientId = this.mq.devices[0] }
     },
     async mqAction(kind) {
-      const q = { clientId: this.mq.clientId, topic: this.mq.topic, msg: this.mq.msg }
+      // publish 用发布主题+消息；sub/unsub 用订阅主题（两者已拆为独立卡片）
+      const q = kind === 'publish'
+        ? { clientId: this.mq.clientId, topic: this.mq.topic, msg: this.mq.msg }
+        : { clientId: this.mq.clientId, topic: this.mq.subTopic }
       const r = await this.run(() => api.mqtt[kind](q), kind)
-      // 订阅成功后自动开始轮询订阅主题消息；取消订阅后停止轮询并清空列表
+      // 成功后记录主题到历史（输入框下拉选择）
+      if (r && r.code === 200) {
+        if (kind === 'publish' && this.mq.topic) this.mqPushHist('pubHist', this.mq.topic)
+        if (kind === 'sub' && this.mq.subTopic) this.mqPushHist('subHist', this.mq.subTopic)
+      }
+      // 订阅成功后自动开始轮询；取消订阅后停止轮询并清空
       if (kind === 'sub' && r && r.code === 200) { await this.mqStartPollSub() }
       if (kind === 'unsub' && r && r.code === 200) { this.mqStopPollSub(); this.mq.subMessages = [] }
     },
     async mqWait() {
       const r = await this.run(() => api.mqtt.publishWait({ clientId: this.mq.clientId, topicSend: this.mq.topicSend, sendPayload: this.mq.sendPayload, topicReply: this.mq.topicReply, timeoutMs: this.mq.timeout }), '发送并等待')
-      // 后端已自动订阅答复主题，调用后开始轮询展示应答主题收到的消息
-      if (r && r.code === 200 && this.mq.topicReply) { await this.mqStartPollReply() }
+      // 应答结果常驻卡片内；成功后记录发送/应答主题历史
+      if (r && r.code === 200) {
+        this.mq.lastWait = r.data || null
+        if (this.mq.topicSend) this.mqPushHist('sendHist', this.mq.topicSend)
+        if (this.mq.topicReply) this.mqPushHist('replyHist', this.mq.topicReply)
+        if (this.mq.topicReply) { await this.mqStartPollReply() }
+      }
     },
     // 订阅主题消息：轮询
     mqStartPollSub() {
