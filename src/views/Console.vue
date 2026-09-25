@@ -122,7 +122,6 @@
               <div class="row"><label>请求(hex)</label><code class="hex">{{ mb.lastReq || '—' }}</code></div>
               <div class="row"><label>响应(hex)</label><code class="hex">{{ mb.lastResp || '—' }}</code></div>
             </div>
-            </div>
           </div>
         </section>
 
