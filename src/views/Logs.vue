@@ -21,15 +21,15 @@
               <td>{{ l.name }}</td>
               <td>{{ l.size }} B</td>
               <td>{{ l.modified }}</td>
-              <td><button class="btn ghost sm" @click="view(l)">查看</button></td>
+              <td><button class="btn ghost sm" @click="viewLog(l)">查看</button></td>
             </tr>
             <tr v-if="!list.length"><td colspan="5" class="empty">无日志文件</td></tr>
           </tbody>
         </table>
       </div>
       <div class="card">
-        <div class="card-h">日志内容：{{ view.name || '—' }}（返回 {{ view.returnedLines }}/{{ view.totalLines }} 行）</div>
-        <pre class="pre" style="max-height:480px">{{ view.content }}</pre>
+        <div class="card-h">日志内容：{{ logView.name || '—' }}（返回 {{ logView.returnedLines }}/{{ logView.totalLines }} 行）</div>
+        <pre class="pre" style="max-height:480px">{{ logView.content }}</pre>
       </div>
     </div>
   </section>
@@ -38,10 +38,10 @@
 import mixin from '../mixins/api'
 export default {
   name: 'LogsPage', mixins: [mixin],
-  data() { return { start:'', end:'', list:[], checked:[], view:{name:'',content:'',totalLines:0,returnedLines:0} } },
+  data() { return { start:'', end:'', list:[], checked:[], logView:{name:'',content:'',totalLines:0,returnedLines:0} } },
   methods: {
     async load() { const r = await this.run(() => this.api.logs.list({ startDate: this.start, endDate: this.end }), '列表'); if (r && r.code === 200) { this.list = r.data || []; this.checked = [] } },
-    async view(l) { const r = await this.run(() => this.api.logs.content({ name: l.name, maxLines: 1000 }), '读取'); if (r && r.code === 200) this.view = r.data || { name: l.name, content:'', totalLines:0, returnedLines:0 } },
+    async viewLog(l) { const r = await this.run(() => this.api.logs.content({ name: l.name, maxLines: 1000 }), '读取'); if (r && r.code === 200) this.logView = r.data || { name: l.name, content:'', totalLines:0, returnedLines:0 } },
     toggleAll(e) { this.checked = e.target.checked ? this.list.map(l => l.name) : [] },
     async delSelected() { if (!this.checked.length) { this.out('✘ 未选择日志'); return } if (!confirm('确认删除选中的 ' + this.checked.length + ' 个日志？')) return; await this.run(() => this.api.logs.remove({ names: this.checked.slice() }), '删除'); this.load() }
   }
