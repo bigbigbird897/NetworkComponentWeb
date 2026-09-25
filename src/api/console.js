@@ -74,7 +74,8 @@ export const mqtt = {
   sub: (q) => request('POST', '/MqttOperation/SubTopic', { query: q }),
   unsub: (q) => request('POST', '/MqttOperation/UnSubTopic', { query: q }),
   publishWait: (b) => request('POST', '/MqttOperation/PublishAndWaitReply', { body: b }),
-  received: (q) => request('GET', '/MqttOperation/GetReceivedMessages', { query: q })
+  received: (q) => request('GET', '/MqttOperation/GetReceivedMessages', { query: q }),
+  deviceStatus: () => request('GET', '/MqttOperation/GetAllDeviceStatus')
 }
 
 // ---- OPC UA ----
@@ -83,7 +84,8 @@ export const opcua = {
   readNode: (q) => request('GET', '/OpcUaOperation/ReadNode', { query: q }),
   readNodes: (b) => request('POST', '/OpcUaOperation/ReadNodes', { body: b }),
   writeNode: (b) => request('POST', '/OpcUaOperation/WriteNode', { body: b }),
-  test: (q) => request('GET', '/OpcUaOperation/TestConnection', { query: q })
+  test: (q) => request('GET', '/OpcUaOperation/TestConnection', { query: q }),
+  deviceStatus: () => request('GET', '/OpcUaOperation/GetAllDeviceStatus')
 }
 
 // ---- Socket 客户端 ----
@@ -96,7 +98,8 @@ export const sockClient = {
   openLong: (b) => request('POST', '/SocketClientOperation/OpenLongConnection', { body: b }),
   closeLong: (b) => request('POST', '/SocketClientOperation/CloseLongConnection', { body: b }),
   longStatus: (q) => request('GET', '/SocketClientOperation/GetLongConnectionStatus', { query: q }),
-  test: (q) => request('GET', '/SocketClientOperation/TestConnection', { query: q })
+  test: (q) => request('GET', '/SocketClientOperation/TestConnection', { query: q }),
+  deviceStatus: () => request('GET', '/SocketClientOperation/GetAllDeviceStatus')
 }
 
 // ---- 系统配置（appsettings.json）----
@@ -130,5 +133,6 @@ export const sockServer = {
   broadcast: (b) => request('POST', '/SocketServerOperation/Broadcast', { body: b }),
   broadcastString: (b) => request('POST', '/SocketServerOperation/BroadcastString', { body: b }),
   clients: (q) => request('GET', '/SocketServerOperation/GetConnectedClients', { query: q }),
-  recent: (q) => request('GET', '/SocketServerOperation/GetRecentMessages', { query: q })
+  recent: (q) => request('GET', '/SocketServerOperation/GetRecentMessages', { query: q }),
+  serverStatus: () => request('GET', '/SocketServerOperation/GetAllServerStatus')
 }

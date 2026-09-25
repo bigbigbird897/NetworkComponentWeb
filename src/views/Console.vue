@@ -1,12 +1,4 @@
-<templ    async mbCheckStatus() {
-      const r = await this.run(this.mbApi().deviceStatus, '检测设备状态')
-      if (r && r.code === 200) this.mb.deviceStatuses = r.data || {}
-    },
-    async mbCalcCrc() {
-      if (this.active !== 'rtu') return
-      const r = await this.run(() => api.modbusRtu.calcCrc({ hex: this.mb.crcInput }), 'CRC计算')
-      if (r && r.code === 200) this.mb.crcResult = r.data
-    },ate>
+<template>
   <div class="io-shell" :class="theme">
     <!-- 顶栏 -->
     <header class="io-topbar">
@@ -146,6 +138,31 @@
             <button class="btn ghost" @click="loadMqttDevices">刷新客户端</button>
           </div>
           <div class="grid two">
+          <div class="card" style="margin-top:12px">
+            <div class="card-h">MQTT Broker 
+连
+接
+状
+态
+</div>
+            <div class="dev-status">
+              <div v-for="(on, code) in mqStatus" :key="code" class="dev-item">
+                <span class="dot" :class="on ? 'on' : 'off'"></span>
+                <span class="dev-code">{{ code }}</span>
+                <span class="dev-txt">{{ on ? '
+在线
+' : '
+离线
+' }}</span>
+              </div>
+              <div v-if="!Object.keys(mqStatus).length" class="dev-empty">
+点击下方按钮检测
+</div>
+            </div>
+            <div class="btns"><button class="btn ghost" @click="mqCheckStatus">
+检测状态
+</button></div>
+          </div>
             <div class="card">
               <div class="card-h">发布消息（向指定主题推送）</div>
               <div class="row"><label>发布主题</label><input v-model="mq.topic" list="pubTopicList" placeholder="nc/sendfromsoft/" /></div>
@@ -224,6 +241,33 @@
             <button class="btn ghost" @click="opcTest">连接测试</button>
           </div>
           <div class="grid two">
+          <div class="card" style="margin-top:12px">
+            <div class="card-h">OPC UA 
+设
+备
+连
+接
+状
+态
+</div>
+            <div class="dev-status">
+              <div v-for="(on, code) in opcStatus" :key="code" class="dev-item">
+                <span class="dot" :class="on ? 'on' : 'off'"></span>
+                <span class="dev-code">{{ code }}</span>
+                <span class="dev-txt">{{ on ? '
+在线
+' : '
+离线
+' }}</span>
+              </div>
+              <div v-if="!Object.keys(opcStatus).length" class="dev-empty">
+点击下方按钮检测
+</div>
+            </div>
+            <div class="btns"><button class="btn ghost" @click="opcCheckStatus">
+检测状态
+</button></div>
+          </div>
             <div class="card">
               <div class="card-h">读节点</div>
               <div class="row"><label>NodeId</label><input v-model="opc.nodeId" placeholder="ns=1;s=Counter" /></div>
@@ -252,6 +296,32 @@
             <button class="btn ghost" @click="scTest">连通测试</button>
           </div>
           <div class="grid two">
+          <div class="card" style="margin-top:12px">
+            <div class="card-h">Socket 
+长
+连
+接
+状
+态
+</div>
+            <div class="dev-status">
+              <div v-for="(on, code) in sockcStatus" :key="code" class="dev-item">
+                <span class="dot" :class="on ? 'on' : 'off'"></span>
+                <span class="dev-code">{{ code }}</span>
+                <span class="dev-txt">{{ on ? '
+已连接
+' : '
+未连接
+' }}</span>
+              </div>
+              <div v-if="!Object.keys(sockcStatus).length" class="dev-empty">
+点击下方按钮检测
+</div>
+            </div>
+            <div class="btns"><button class="btn ghost" @click="scCheckStatus">
+检测状态
+</button></div>
+          </div>
             <div class="card">
               <div class="card-h">字符串收发（按配置编码，默认 GBK）</div>
               <div class="row"><label>消息</label><input v-model="sc.message" /></div>
@@ -294,6 +364,36 @@
             <button class="btn warn" @click="ssStop">停止监听</button>
           </div>
           <div class="grid two">
+          <div class="card" style="margin-top:12px">
+            <div class="card-h">
+服
+务
+端
+运
+行
+状
+态
+</div>
+            <div class="dev-status">
+              <div v-for="s in socksStatus" :key="s.serverCode" class="dev-item">
+                <span class="dot" :class="s.running ? 'on' : 'off'"></span>
+                <span class="dev-code">{{ s.serverCode }}</span>
+                <span class="dev-txt">{{ s.running ? '
+监听中
+' : '
+未启动
+' }} ({{ s.clientCount }} 
+客户端
+)</span>
+              </div>
+              <div v-if="!socksStatus.length" class="dev-empty">
+点击下方按钮检测
+</div>
+            </div>
+            <div class="btns"><button class="btn ghost" @click="ssCheckStatus">
+检测状态
+</button></div>
+          </div>
             <div class="card">
               <div class="card-h">在线客户端 / 最近消息</div>
               <div class="btns">
@@ -499,7 +599,8 @@ export default {
       result: '',
       mb: { device: '', devices: [], start: 0, count: 6, addr: 0, value: '', regsCsv: '', boolsCsv: '', hex: '', deviceStatuses: {}, crcInput: '', crcResult: null, lastReq: '', lastResp: '' },
       mq: { clientId: '', devices: [], topic: '', msg: '', subTopic: 'factory/zone/z', topicSend: '', topicReply: '', sendPayload: '', timeout: 3000, subMessages: [], replyMessages: [], pollSub: false, pollReply: false, pollSubTimer: null, pollReplyTimer: null, lastWait: null, pubHist: [], subHist: [], sendHist: [], replyHist: [] },
-      opc: { device: '', devices: [], nodeId: '', nodesCsv: '', writeNode: '', writeValue: '' },
+      opc: { device: '', devices: [], nodeId: '', nodesCsv: '', writeNode: '', writeValue: '', status: {} },
+      mqStatus: {}, opcStatus: {}, sockcStatus: {}, socksStatus: [],
       sc: { device: '', devices: [], message: '', timeout: 1000, hex: '', longInfo: '未查询' },
       ss: { server: '', servers: [], clientId: '', message: '' },
       cfg: { text: '', saving: false },
@@ -614,6 +715,22 @@ export default {
       if (this.active !== 'rtu') return
       const r = await this.run(() => api.modbusRtu.calcCrc({ hex: this.mb.crcInput }), 'CRC计算')
       if (r && r.code === 200) this.mb.crcResult = r.data
+    },
+    async mqCheckStatus() {
+      const r = await this.run(api.mqtt.deviceStatus, "检测MQTT状态")
+      if (r && r.code === 200) this.mqStatus = r.data || {}
+    },
+    async opcCheckStatus() {
+      const r = await this.run(api.opcua.deviceStatus, "检测OPCUA状态")
+      if (r && r.code === 200) this.opcStatus = r.data || {}
+    },
+    async scCheckStatus() {
+      const r = await this.run(api.sockClient.deviceStatus, "检测Socket客户端状态")
+      if (r && r.code === 200) this.sockcStatus = r.data || {}
+    },
+    async ssCheckStatus() {
+      const r = await this.run(api.sockServer.serverStatus, "检测Socket服务端状态")
+      if (r && r.code === 200) this.socksStatus = r.data || []
     },
 
     // MQTT 主题历史：从 localStorage 读取 / 写入（最多 20 条，去重，最新在前）
