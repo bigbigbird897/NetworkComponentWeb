@@ -108,14 +108,11 @@
               <div class="btns"><button class="btn ghost" @click="mbCheckStatus">检测在线状态</button></div>
             </div>
             <div v-if="active === 'rtu'" class="card">
-              <div class="card-h">RTU CRC16 计算器</div>
-              <div class="row"><label>报文HEX(不含CRC)</label><input v-model="mb.crcInput" placeholder="01 03 00 00 00 02" /></div>
-              <div class="btns"><button class="btn" @click="mbCalcCrc">计算CRC</button></div>
-              <div v-if="mb.crcResult" class="crc-out">
-                <div>CRC低字节：<b>{{ mb.crcResult.crcLow }}</b></div>
-                <div>CRC高字节：<b>{{ mb.crcResult.crcHigh }}</b></div>
-                <div>完整CRC：<b>{{ mb.crcResult.crcFull }}</b></div>
-                <div>完整帧：<code>{{ mb.crcResult.fullFrame }}</code></div>
+              <div class="card-h">Modbus RTU CRC 16校验码计算器</div>
+              <div class="crc-row">
+                <input class="base-input crc-input" v-model="mb.crcInput" @input="onCrcInput" :placeholder="'输入命令（不含CRC）'" />
+                <div class="crc-result">{{ mb.crcDisplay || 'FF FF' }}</div>
+                <button class="btn ghost" @click="copyCrc">复制</button>
               </div>
             </div>
             <div class="card">
@@ -597,7 +594,7 @@ export default {
       machineCode: '',
       statusText: '',
       result: '',
-      mb: { device: '', devices: [], start: 0, count: 6, addr: 0, value: '', regsCsv: '', boolsCsv: '', hex: '', deviceStatuses: {}, crcInput: '', crcResult: null, lastReq: '', lastResp: '' },
+      mb: { device: '', devices: [], start: 0, count: 6, addr: 0, value: '', regsCsv: '', boolsCsv: '', hex: '', deviceStatuses: {}, crcInput: '', crcResult: null, crcDisplay: '', lastReq: '', lastResp: '' },
       mq: { clientId: '', devices: [], topic: '', msg: '', subTopic: 'factory/zone/z', topicSend: '', topicReply: '', sendPayload: '', timeout: 3000, subMessages: [], replyMessages: [], pollSub: false, pollReply: false, pollSubTimer: null, pollReplyTimer: null, lastWait: null, pubHist: [], subHist: [], sendHist: [], replyHist: [] },
       opc: { device: '', devices: [], nodeId: '', nodesCsv: '', writeNode: '', writeValue: '', status: {} },
       mqStatus: {}, opcStatus: {}, sockcStatus: {}, socksStatus: [],
@@ -715,6 +712,26 @@ export default {
       if (this.active !== 'rtu') return
       const r = await this.run(() => api.modbusRtu.calcCrc({ hex: this.mb.crcInput }), 'CRC计算')
       if (r && r.code === 200) this.mb.crcResult = r.data
+    },
+    onCrcInput() {
+      const hex = (this.mb.crcInput || '').trim().replace(/[,锛孿s]+/g, ' ').trim()
+      if (!hex) { this.mb.crcDisplay = ''; return }
+      const bytes = hex.split(' ').filter(Boolean).map(h => parseInt(h, 16))
+      if (bytes.some(b => isNaN(b))) { this.mb.crcDisplay = ''; return }
+      let crc = 0xFFFF
+      for (const b of bytes) {
+        crc ^= b
+        for (let i = 0; i < 8; i++) {
+          crc = (crc & 1) ? ((crc >> 1) ^ 0xA001) : (crc >> 1)
+        }
+      }
+      const lo = (crc & 0xFF).toString(16).toUpperCase().padStart(2, '0')
+      const hi = ((crc >> 8) & 0xFF).toString(16).toUpperCase().padStart(2, '0')
+      this.mb.crcDisplay = lo + ' ' + hi
+    },
+    copyCrc() {
+      const text = this.mb.crcDisplay || 'FF FF'
+      if (navigator.clipboard) navigator.clipboard.writeText(text)
     },
     async mqCheckStatus() {
       const r = await this.run(api.mqtt.deviceStatus, "检测MQTT状态")
@@ -1105,5 +1122,8 @@ export default {
 .dev-empty { font-size: 12px; color: var(--text-3); }
 .crc-out { margin-top: 10px; padding: 10px; background: var(--input); border-radius: 4px; font-size: 13px; line-height: 1.8; }
 .crc-out code { background: var(--line); padding: 2px 6px; border-radius: 3px; font-family: monospace; }
+.crc-row { display: flex; gap: 10px; align-items: center; }
+.crc-input { flex: 1; }
+.crc-result { min-width: 80px; padding: 8px 14px; background: var(--input); border: 1px solid var(--line); border-radius: 4px; font-family: monospace; font-weight: 600; letter-spacing: 2px; text-align: center; color: var(--text); }
 .row code.hex { flex: 1; font-family: monospace; font-size: 12px; background: var(--input); padding: 4px 6px; border-radius: 3px; word-break: break-all; }
 </style>
