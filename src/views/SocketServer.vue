@@ -11,7 +11,7 @@
       <button class="btn warn" @click="stop">停止监听</button>
     </div>
     <div class="grid two">
-      <div class="card">
+      <div class="card" style="grid-column: 1 / -1">
         <div class="card-h">服务端运行状态</div>
         <div class="dev-status">
           <div v-for="s in socksStatus" :key="s.serverCode" class="dev-item">

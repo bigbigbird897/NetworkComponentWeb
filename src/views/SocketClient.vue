@@ -10,7 +10,7 @@
       <button class="btn ghost" @click="test">连通测试</button>
     </div>
     <div class="grid two">
-      <div class="card">
+      <div class="card" style="grid-column: 1 / -1">
         <div class="card-h">Socket 长连接状态</div>
         <div class="dev-status">
           <div v-for="(on, code) in status" :key="code" class="dev-item">

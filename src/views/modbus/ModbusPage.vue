@@ -9,6 +9,18 @@
       <button class="btn ghost" @click="loadDevices">刷新设备</button>
     </div>
     <div class="grid two">
+      <div class="card" style="grid-column: 1 / -1">
+        <div class="card-h">设备在线状态</div>
+        <div class="dev-status">
+          <div v-for="(on, code) in mb.deviceStatuses" :key="code" class="dev-item">
+            <span class="dot" :class="on ? 'on' : 'off'"></span>
+            <span class="dev-code">{{ code }}</span>
+            <span class="dev-txt">{{ on ? '在线' : '离线' }}</span>
+          </div>
+          <div v-if="!Object.keys(mb.deviceStatuses).length" class="dev-empty">点击下方按钮检测</div>
+        </div>
+        <div class="btns"><button class="btn ghost" @click="mbCheckStatus">检测在线状态</button></div>
+      </div>
       <div class="card">
         <div class="card-h">读取</div>
         <div class="row"><label>起始地址</label><input type="number" v-model.number="mb.start" /></div>
@@ -44,18 +56,6 @@
         <div class="card-h">原始报文（MBAP+PDU）</div>
         <div class="row"><label>HEX 字节(空格分隔)</label><input v-model="mb.hex" placeholder="00 01 00 00 00 06 01 03 00 00 00 01" /></div>
         <div class="btns"><button class="btn" @click="mbSendRaw">发送原始报文</button></div>
-      </div>
-      <div class="card">
-        <div class="card-h">设备在线状态</div>
-        <div class="dev-status">
-          <div v-for="(on, code) in mb.deviceStatuses" :key="code" class="dev-item">
-            <span class="dot" :class="on ? 'on' : 'off'"></span>
-            <span class="dev-code">{{ code }}</span>
-            <span class="dev-txt">{{ on ? '在线' : '离线' }}</span>
-          </div>
-          <div v-if="!Object.keys(mb.deviceStatuses).length" class="dev-empty">点击下方按钮检测</div>
-        </div>
-        <div class="btns"><button class="btn ghost" @click="mbCheckStatus">检测在线状态</button></div>
       </div>
       <div v-if="mode === 'rtu'" class="card">
         <div class="card-h">Modbus RTU CRC 16校验码计算器</div>
