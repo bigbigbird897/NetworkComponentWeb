@@ -96,6 +96,7 @@
               <div class="card-h">原始报文（MBAP+PDU）</div>
               <div class="row"><label>HEX 字节(空格分隔)</label><input v-model="mb.hex" placeholder="00 01 00 00 00 06 01 03 00 00 00 01" /></div>
               <div class="btns"><button class="btn" @click="mbSendRaw">发送原始报文</button></div>
+            </div>
             <div class="card">
               <div class="card-h">设备在线状态</div>
               <div class="dev-status">
