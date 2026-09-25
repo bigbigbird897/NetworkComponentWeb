@@ -49,7 +49,8 @@ export const modbusTcp = {
   readInputRegister: (q) => request('POST', '/ModbusTcpOperation/ReadInputRegister', { query: q }),
   writeSingleCoil: (q) => request('POST', '/ModbusTcpOperation/WriteSingleCoil', { query: q }),
   writeMultiCoil: (b) => request('POST', '/ModbusTcpOperation/WriteMultiCoil', { body: b }),
-  sendRaw: (q) => request('POST', '/ModbusTcpOperation/SendRawPacket', { query: q })
+  sendRaw: (q) => request('POST', '/ModbusTcpOperation/SendRawPacket', { query: q }),
+  deviceStatus: () => request('GET', '/ModbusTcpOperation/GetAllDeviceStatus')
 }
 
 // ---- Modbus RTU over TCP ----
@@ -61,7 +62,9 @@ export const modbusRtu = {
   readDiscreteInput: (q) => request('POST', '/ModbusRtuOverTcpOperation/ReadDiscreteInput', { query: q }),
   readInputRegister: (q) => request('POST', '/ModbusRtuOverTcpOperation/ReadInputRegister', { query: q }),
   writeSingleCoil: (q) => request('POST', '/ModbusRtuOverTcpOperation/WriteSingleCoil', { query: q }),
-  writeMultiCoil: (b) => request('POST', '/ModbusRtuOverTcpOperation/WriteMultiCoil', { body: b })
+  writeMultiCoil: (b) => request('POST', '/ModbusRtuOverTcpOperation/WriteMultiCoil', { body: b }),
+  deviceStatus: () => request('GET', '/ModbusRtuOverTcpOperation/GetAllDeviceStatus'),
+  calcCrc: (q) => request('GET', '/ModbusRtuOverTcpOperation/CalcCrc', { query: q })
 }
 
 // ---- MQTT ----

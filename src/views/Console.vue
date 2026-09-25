@@ -1,4 +1,12 @@
-<template>
+<templ    async mbCheckStatus() {
+      const r = await this.run(this.mbApi().deviceStatus, '检测设备状态')
+      if (r && r.code === 200) this.mb.deviceStatuses = r.data || {}
+    },
+    async mbCalcCrc() {
+      if (this.active !== 'rtu') return
+      const r = await this.run(() => api.modbusRtu.calcCrc({ hex: this.mb.crcInput }), 'CRC计算')
+      if (r && r.code === 200) this.mb.crcResult = r.data
+    },ate>
   <div class="io-shell" :class="theme">
     <!-- 顶栏 -->
     <header class="io-topbar">
@@ -95,6 +103,34 @@
               <div class="card-h">原始报文（MBAP+PDU）</div>
               <div class="row"><label>HEX 字节(空格分隔)</label><input v-model="mb.hex" placeholder="00 01 00 00 00 06 01 03 00 00 00 01" /></div>
               <div class="btns"><button class="btn" @click="mbSendRaw">发送原始报文</button></div>
+            <div class="card">
+              <div class="card-h">设备在线状态</div>
+              <div class="dev-status">
+                <div v-for="(on, code) in mb.deviceStatuses" :key="code" class="dev-item">
+                  <span class="dot" :class="on ? 'on' : 'off'"></span>
+                  <span class="dev-code">{{ code }}</span>
+                  <span class="dev-txt">{{ on ? '在线' : '离线' }}</span>
+                </div>
+                <div v-if="!Object.keys(mb.deviceStatuses).length" class="dev-empty">点击下方按钮检测</div>
+              </div>
+              <div class="btns"><button class="btn ghost" @click="mbCheckStatus">检测在线状态</button></div>
+            </div>
+            <div v-if="active === 'rtu'" class="card">
+              <div class="card-h">RTU CRC16 计算器</div>
+              <div class="row"><label>报文HEX(不含CRC)</label><input v-model="mb.crcInput" placeholder="01 03 00 00 00 02" /></div>
+              <div class="btns"><button class="btn" @click="mbCalcCrc">计算CRC</button></div>
+              <div v-if="mb.crcResult" class="crc-out">
+                <div>CRC低字节：<b>{{ mb.crcResult.crcLow }}</b></div>
+                <div>CRC高字节：<b>{{ mb.crcResult.crcHigh }}</b></div>
+                <div>完整CRC：<b>{{ mb.crcResult.crcFull }}</b></div>
+                <div>完整帧：<code>{{ mb.crcResult.fullFrame }}</code></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-h">最近一次原始报文</div>
+              <div class="row"><label>请求(hex)</label><code class="hex">{{ mb.lastReq || '—' }}</code></div>
+              <div class="row"><label>响应(hex)</label><code class="hex">{{ mb.lastResp || '—' }}</code></div>
+            </div>
             </div>
           </div>
         </section>
@@ -112,13 +148,13 @@
           <div class="grid two">
             <div class="card">
               <div class="card-h">发布消息（向指定主题推送）</div>
-              <div class="row"><label>发布主题</label><input v-model="mq.topic" list="pubTopicList" placeholder="factory/zone/z" /></div>
+              <div class="row"><label>发布主题</label><input v-model="mq.topic" list="pubTopicList" placeholder="nc/sendfromsoft/" /></div>
               <div class="row"><label>消息内容</label><input v-model="mq.msg" /></div>
               <div class="btns"><button class="btn" @click="mqAction('publish')">发布消息</button></div>
             </div>
             <div class="card">
               <div class="card-h">托管订阅（订阅主题后，该主题消息进入下方「订阅主题消息」列表）</div>
-              <div class="row"><label>订阅主题</label><input v-model="mq.subTopic" list="subTopicList" placeholder="factory/zone/z" /></div>
+              <div class="row"><label>订阅主题</label><input v-model="mq.subTopic" list="subTopicList" placeholder="nc/sendfrommqttx/" /></div>
               <div class="btns">
                 <button class="btn" @click="mqAction('sub')">订阅主题</button>
                 <button class="btn ghost" @click="mqAction('unsub')">取消订阅</button>
@@ -461,7 +497,7 @@ export default {
       machineCode: '',
       statusText: '',
       result: '',
-      mb: { device: '', devices: [], start: 0, count: 6, addr: 0, value: '', regsCsv: '', boolsCsv: '', hex: '' },
+      mb: { device: '', devices: [], start: 0, count: 6, addr: 0, value: '', regsCsv: '', boolsCsv: '', hex: '', deviceStatuses: {}, crcInput: '', crcResult: null, lastReq: '', lastResp: '' },
       mq: { clientId: '', devices: [], topic: '', msg: '', subTopic: 'factory/zone/z', topicSend: '', topicReply: '', sendPayload: '', timeout: 3000, subMessages: [], replyMessages: [], pollSub: false, pollReply: false, pollSubTimer: null, pollReplyTimer: null, lastWait: null, pubHist: [], subHist: [], sendHist: [], replyHist: [] },
       opc: { device: '', devices: [], nodeId: '', nodesCsv: '', writeNode: '', writeValue: '' },
       sc: { device: '', devices: [], message: '', timeout: 1000, hex: '', longInfo: '未查询' },
@@ -521,6 +557,10 @@ export default {
         const r = await fn()
         this.connState = 'on'; this.connText = '已连接'
         this.out(r && r.msg ? `${okHint || ''}\n${JSON.stringify(r, null, 2)}` : (r && r.code === 200 ? (okHint + ' ✔') : '') + '\n' + JSON.stringify(r, null, 2))
+        if (r && r.code === 200 && r.data && typeof r.data === 'object' && 'rawRequest' in r.data) {
+          this.mb.lastReq = r.data.rawRequest || ''
+          this.mb.lastResp = r.data.rawResponse || ''
+        }
         return r
       } catch (e) {
         this.connState = 'off'; this.connText = '连接失败'
@@ -565,6 +605,15 @@ export default {
     async mbSendRaw() {
       const bytes = hexToBytes(this.mb.hex)
       await this.run(() => api.modbusTcp.sendRaw({ deviceCode: this.mb.device, tcpPacketBytes: bytes }), '原始报文')
+    },
+    async mbCheckStatus() {
+      const r = await this.run(this.mbApi().deviceStatus, '检测设备状态')
+      if (r && r.code === 200) this.mb.deviceStatuses = r.data || {}
+    },
+    async mbCalcCrc() {
+      if (this.active !== 'rtu') return
+      const r = await this.run(() => api.modbusRtu.calcCrc({ hex: this.mb.crcInput }), 'CRC计算')
+      if (r && r.code === 200) this.mb.crcResult = r.data
     },
 
     // MQTT 主题历史：从 localStorage 读取 / 写入（最多 20 条，去重，最新在前）
@@ -929,4 +978,15 @@ export default {
 .about-p { color: var(--text-2); font-size: 13.5px; line-height: 1.7; margin: 4px 0; }
 .about-ul { margin: 6px 0 0; padding-left: 18px; color: var(--text-2); font-size: 13.5px; line-height: 1.9; }
 .about-mail { font-size: 20px; color: var(--accent); font-weight: 600; letter-spacing: 1px; margin: 8px 0; }
+.dev-status { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.dev-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.dev-item .dot { width: 8px; height: 8px; border-radius: 50%; background: #999; }
+.dev-item .dot.on { background: #16a34a; box-shadow: 0 0 6px #16a34a; }
+.dev-item .dot.off { background: #dc2626; }
+.dev-code { font-family: monospace; }
+.dev-txt { color: var(--text-3); }
+.dev-empty { font-size: 12px; color: var(--text-3); }
+.crc-out { margin-top: 10px; padding: 10px; background: var(--input); border-radius: 4px; font-size: 13px; line-height: 1.8; }
+.crc-out code { background: var(--line); padding: 2px 6px; border-radius: 3px; font-family: monospace; }
+.row code.hex { flex: 1; font-family: monospace; font-size: 12px; background: var(--input); padding: 4px 6px; border-radius: 3px; word-break: break-all; }
 </style>
