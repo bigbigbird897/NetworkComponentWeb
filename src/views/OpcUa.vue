@@ -32,7 +32,23 @@
       <div class="card">
         <div class="card-h">写节点</div>
         <div class="row"><label>NodeId</label><input v-model="opc.writeNode" /></div>
-        <div class="row"><label>值</label><input v-model="opc.writeValue" /></div>
+        <div class="row">
+          <label>数据类型</label>
+          <select v-model="opc.writeDataType" class="sel" style="min-width:140px">
+            <option value="Boolean">Boolean</option>
+            <option value="SByte">SByte</option>
+            <option value="Int16">Int16</option>
+            <option value="UInt16">UInt16</option>
+            <option value="Int32">Int32</option>
+            <option value="UInt32">UInt32</option>
+            <option value="Int64">Int64</option>
+            <option value="UInt64">UInt64</option>
+            <option value="Float">Float</option>
+            <option value="Double">Double</option>
+            <option value="String">String</option>
+          </select>
+        </div>
+        <div class="row"><label>值</label><input v-model="opc.writeValue" :placeholder="opc.writeDataType==='Boolean'?'true/false':''" /></div>
         <div class="btns"><button class="btn warn" @click="write">写入</button></div>
       </div>
     </div>
@@ -42,14 +58,14 @@
 import mixin from '../mixins/api'
 export default {
   name: 'OpcUaPage', mixins: [mixin],
-  data() { return { opc: { device:'',devices:[],nodeId:'',nodesCsv:'',writeNode:'',writeValue:'' }, status:{} } },
+  data() { return { opc: { device:'',devices:[],nodeId:'',nodesCsv:'',writeNode:'',writeValue:'',writeDataType:'Int32' }, status:{} } },
   created() { this.load() },
   methods: {
     async load() { const r = await this.run(this.api.opcua.devices); if (r && r.code === 200) { this.opc.devices = r.data || []; if (!this.opc.device && this.opc.devices[0]) this.opc.device = this.opc.devices[0] } },
     async test() { await this.run(() => this.api.opcua.test({ deviceCode: this.opc.device }), '连接测试') },
     async readOne() { await this.run(() => this.api.opcua.readNode({ deviceCode: this.opc.device, nodeId: this.opc.nodeId }), '读单节点') },
     async readMany() { const ids = this.opc.nodesCsv.split(',').map(s => s.trim()).filter(Boolean); await this.run(() => this.api.opcua.readNodes({ deviceCode: this.opc.device, nodeIds: ids }), '批量读') },
-    async write() { await this.run(() => this.api.opcua.writeNode({ deviceCode: this.opc.device, nodeId: this.opc.writeNode, value: this.opc.writeValue }), '写节点') },
+    async write() { await this.run(() => this.api.opcua.writeNode({ deviceCode: this.opc.device, nodeId: this.opc.writeNode, value: this.opc.writeValue, dataType: this.opc.writeDataType }), '写节点') },
     async check() { const r = await this.run(this.api.opcua.deviceStatus, '检测状态'); if (r && r.code === 200) this.status = r.data || {} }
   }
 }
