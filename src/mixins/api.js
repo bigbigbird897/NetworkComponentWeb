@@ -14,14 +14,15 @@ const highlightJson = (text) => {
   return escapeHtml(text)
 }
 
-const num = (s, d = 0) => { const n = Number(s); return isNaN(n) ? d : n }
-const csvNums = (text) => String(text || '').split(',').map(s => num(s.trim())).filter(n => !isNaN(n))
-const csvBools = (text) => String(text || '').split(',').map(s => s.trim().toLowerCase() === 'true')
-const hexToBytes = (text) => String(text || '').trim().split(/[\s,]+/).filter(Boolean).map(h => parseInt(h, 16))
-
 export default {
-  data() { return { api, num, csvNums, csvBools, hexToBytes } },
+  computed: {
+    api() { return api }
+  },
   methods: {
+    num(s, d = 0) { const n = Number(s); return isNaN(n) ? d : n },
+    csvNums(text) { return String(text || '').split(',').map(s => this.num(s.trim())).filter(n => !isNaN(n)) },
+    csvBools(text) { return String(text || '').split(',').map(s => s.trim().toLowerCase() === 'true') },
+    hexToBytes(text) { return String(text || '').trim().split(/[\s,]+/).filter(Boolean).map(h => parseInt(h, 16)) },
     out(v) { this.$root.$emit('result', typeof v === 'string' ? v : JSON.stringify(v, null, 2)) },
     async run(fn, okHint) {
       try {

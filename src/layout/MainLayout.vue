@@ -35,10 +35,11 @@
 </template>
 <script>
 import mixin from '../mixins/api'
+import * as apiModule from '../api/console'
 export default {
   name: 'MainLayout', mixins: [mixin],
   data() { return {
-    baseUrl: this.api.getBase(),
+    baseUrl: apiModule.getBase(),
     connState: 'off', connText: '未连接',
     theme: localStorage.getItem('nc-theme') || 'light',
     result: '',
@@ -62,7 +63,7 @@ export default {
     this.$root.$on('conn', s => { this.connState = s.state; this.connText = s.text })
   },
   methods: {
-    applyBase() { this.api.setBase(this.baseUrl); this.connState = 'wait'; this.connText = '已应用' },
+    applyBase() { apiModule.setBase(this.baseUrl); this.connState = 'wait'; this.connText = '已应用' },
     toggleTheme() { this.theme = this.theme === 'dark' ? 'light' : 'dark'; localStorage.setItem('nc-theme', this.theme) }
   }
 }
