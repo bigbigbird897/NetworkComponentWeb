@@ -20,7 +20,7 @@ const csvBools = (text) => String(text || '').split(',').map(s => s.trim().toLow
 const hexToBytes = (text) => String(text || '').trim().split(/[\s,]+/).filter(Boolean).map(h => parseInt(h, 16))
 
 export default {
-  data() { return { api, num, csvNums, csvBools, hexToBytes, hl } },
+  data() { return { api, num, csvNums, csvBools, hexToBytes } },
   methods: {
     out(v) { this.$root.$emit('result', typeof v === 'string' ? v : JSON.stringify(v, null, 2)) },
     async run(fn, okHint) {
