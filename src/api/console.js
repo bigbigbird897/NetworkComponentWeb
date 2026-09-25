@@ -63,6 +63,7 @@ export const modbusRtu = {
   readInputRegister: (q) => request('POST', '/ModbusRtuOverTcpOperation/ReadInputRegister', { query: q }),
   writeSingleCoil: (q) => request('POST', '/ModbusRtuOverTcpOperation/WriteSingleCoil', { query: q }),
   writeMultiCoil: (b) => request('POST', '/ModbusRtuOverTcpOperation/WriteMultiCoil', { body: b }),
+  writeMultiRegister: (b) => request('POST', '/ModbusRtuOverTcpOperation/WriteMultiRegister', { body: b }),
   deviceStatus: () => request('GET', '/ModbusRtuOverTcpOperation/GetAllDeviceStatus'),
   calcCrc: (q) => request('GET', '/ModbusRtuOverTcpOperation/CalcCrc', { query: q })
 }

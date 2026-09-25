@@ -85,6 +85,7 @@
             <div class="card">
               <div class="card-h">批量写</div>
               <div class="row"><label>寄存器值(逗号分隔)</label><input v-model="mb.regsCsv" placeholder="100,200,300" /></div>
+              <div class="row"><label>起始地址</label><input type="number" v-model.number="mb.multiStart" /></div>
               <div class="row"><label>线圈值(逗号分隔 true/false)</label><input v-model="mb.boolsCsv" placeholder="true,false,true" /></div>
               <div class="btns">
                 <button class="btn warn" @click="mbWriteMultiReg">写多寄存器 10</button>
@@ -594,7 +595,7 @@ export default {
       machineCode: '',
       statusText: '',
       result: '',
-      mb: { device: '', devices: [], start: 0, count: 6, addr: 0, value: '', regsCsv: '', boolsCsv: '', hex: '', deviceStatuses: {}, crcInput: '', crcResult: null, crcDisplay: '', lastReq: '', lastResp: '' },
+      mb: { device: '', devices: [], start: 0, count: 6, addr: 0, value: '', regsCsv: '', boolsCsv: '', hex: '', deviceStatuses: {}, crcInput: '', crcResult: null, crcDisplay: '', multiStart: 0, lastReq: '', lastResp: '' },
       mq: { clientId: '', devices: [], topic: '', msg: '', subTopic: 'factory/zone/z', topicSend: '', topicReply: '', sendPayload: '', timeout: 3000, subMessages: [], replyMessages: [], pollSub: false, pollReply: false, pollSubTimer: null, pollReplyTimer: null, lastWait: null, pubHist: [], subHist: [], sendHist: [], replyHist: [] },
       opc: { device: '', devices: [], nodeId: '', nodesCsv: '', writeNode: '', writeValue: '', status: {} },
       mqStatus: {}, opcStatus: {}, sockcStatus: {}, socksStatus: [],
@@ -694,7 +695,7 @@ export default {
     },
     async mbWriteMultiReg() {
       const values = csvNums(this.mb.regsCsv)
-      await this.run(() => this.mbApi().writeMultiRegister({ deviceCode: this.mb.device, startAddr: this.mb.start, value: values }), '写多寄存器')
+      await this.run(() => this.mbApi().writeMultiRegister({ deviceCode: this.mb.device, startAddr: this.mb.multiStart, value: values }), '写多寄存器')
     },
     async mbWriteMultiCoil() {
       const values = csvBools(this.mb.boolsCsv)
