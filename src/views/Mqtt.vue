@@ -8,19 +8,7 @@
       </select>
       <button class="btn ghost" @click="load">刷新客户端</button>
     </div>
-    <div class="grid two">
-      <div class="card">
-        <div class="card-h">MQTT Broker 连接状态</div>
-        <div class="dev-status">
-          <div v-for="(on, code) in status" :key="code" class="dev-item">
-            <span class="dot" :class="on ? 'on' : 'off'"></span>
-            <span class="dev-code">{{ code }}</span>
-            <span class="dev-txt">{{ on ? '在线' : '离线' }}</span>
-          </div>
-          <div v-if="!Object.keys(status).length" class="dev-empty">点击下方按钮检测</div>
-        </div>
-        <div class="btns"><button class="btn ghost" @click="check">检测状态</button></div>
-      </div>
+    <div class="grid two"> 
       <div class="card">
         <div class="card-h">发布消息（向指定主题推送）</div>
         <div class="row"><label>发布主题</label><input v-model="mq.topic" list="pubTopicList" placeholder="nc/sendfromsoft/" /></div>
@@ -34,6 +22,18 @@
           <button class="btn" @click="act('sub')">订阅主题</button>
           <button class="btn ghost" @click="act('unsub')">取消订阅</button>
         </div>
+      </div>
+      <div class="card" style="grid-column: 1 / -1">
+        <div class="card-h" >MQTT Broker 连接状态</div>
+        <div class="dev-status">
+          <div v-for="(on, code) in status" :key="code" class="dev-item">
+            <span class="dot" :class="on ? 'on' : 'off'"></span>
+            <span class="dev-code">{{ code }}</span>
+            <span class="dev-txt">{{ on ? '在线' : '离线' }}</span>
+          </div>
+          <div v-if="!Object.keys(status).length" class="dev-empty">点击下方按钮检测</div>
+        </div>
+        <div class="btns"><button class="btn ghost" @click="check">检测状态</button></div>
       </div>
     </div>
     <div class="card" style="margin-top:12px">
@@ -86,6 +86,7 @@
     <datalist id="replyTopicList"><option v-for="t in mq.replyHist" :key="t" :value="t"></option></datalist>
   </section>
 </template>
+
 <script>
 import mixin from '../mixins/api'
 export default {
